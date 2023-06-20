@@ -57,3 +57,7 @@ To be added:
   - Differential Expression
     - `DESeq2`
 
+
+## Resource requirements
+
+[Trinity Resource Requirements](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-Computing-Requirements)
