@@ -9,9 +9,17 @@ samples: 'inputs/ms_samples.csv'
 # YAML-formatted dictionary of assembly_basename: [samples]
 assembly_info: 
   "msC13": 
+    - 'msC13app'
     - 'msC13body'
     - 'msC13eye'
-    - 'msC13app'
+  "msA11":
+    - 'msA11app'
+    - 'msA11body'
+    - 'msA11eye'
+  "msB20":
+    - 'msB20app'
+    - 'msB20body'
+    - 'msB20eye'
 
 # In addition to the above, should we build an assembly using all samples?
 also_assemble_all: False # True
