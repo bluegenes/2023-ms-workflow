@@ -34,6 +34,7 @@ rule all:
         outdir + "/fastqc/multiqc_report.html",
         expand(outdir + "trinity/{assembly_basename}_assembly.fasta", assembly_basename=assembly_info.keys()),
         expand(outdir + "/{assembly_basename}/quant/{sample}_quant/quant.sf", assembly_basename=assembly_info.keys(), sample=SAMPLES),
+        expand(outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3", assembly_basename=assembly_info.keys()),
 
 rule download_reads:
     message:
@@ -52,6 +53,12 @@ rule assemble:
         "Assemble reads"
     input:
         expand(outdir + "trinity/{assembly_basename}_assembly.fasta", assembly_basename=assembly_info.keys()),
+
+rule annotate:
+    message:
+        "Annotate assembly"
+    input:
+        expand(outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3", assembly_basename=assembly_info.keys()),
 
 rule quantify:
     message:
@@ -193,6 +200,32 @@ rule trinity_assembly:
     conda: "conf/env/trinity.yml"
     shell:
         "Trinity --seqType fq --samples_file {input.sample_info} --CPU {threads} --output {output.assembled_transcripts}"
+
+
+rule dammit_annotate:
+    input:
+        assembly = outdir + "trinity/{assembly_basename}_assembly.fasta",
+    output:
+        dammit_gff3 = outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3",
+        dammit_fasta = outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.fasta",
+        dammit_report = outdir + "{assembly_basename}/dammit/{assembly_basename}.dammit.report.html",
+    params:
+        max_memory=TRINITY_MAX_MEMORY,
+        outdir= lambda w: f"{outdir}/{w.assembly_basename}/dammit",
+        database_dir='databases',
+    threads: 20
+    resources:
+        mem_mb=max(150000, TRINITY_MAX_MEMORY),
+        time=6000,
+        partition='bmh',
+    conda: "conf/env/dammit.yml"
+    shell:
+        """
+        dammit annotate {input.assembly} --busco-group eukaryota --n_threads {threads} \
+               --database-dir {params.database_dir} --out-dir {params.outdir} \
+               --full -o {wildcards.assembly_basename} --no-rename \
+               --profile slurm 2> {log}
+        """
 
 
 ### index assembly and quantify reads with salmon ###
