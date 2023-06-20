@@ -29,14 +29,14 @@ conda activate 2023-ms-workflow
 ```
 snakemake download_reads -j1 -n
 ```
-> `-j1` - number of simultaneous jobs
-> `-n` - specifies a dryrun; remove to actually execute
+> - `-j1` number of simultaneous jobs
+> - `-n` specifies a 'dryrun'; remove to actually execute
 
 Do a full workflow 'dryrun' to see what steps will be run:
 ```
 snakemake -n -j 1
 ```
-> To actually execute the steps, remove the `-n` (`dryrun`) and specify the number of jobs you'd like to run at once with `-j `
+> To actually execute the steps, remove the `-n` (dryrun) and specify the number of jobs you'd like to run at once with `-j `
 
 
 ### Workflow Steps:
