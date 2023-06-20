@@ -116,54 +116,58 @@ rule fastqc_raw:
     message:
         "Running fastqc on raw data"
     input:
-        r1 = lambda w: ancient(sample_info.at[w.sample, 'read1']),
-        r2 = lambda w: ancient(sample_info.at[w.sample, 'read2']),
-    output: outdir + "/fastqc/{sample}.fastqc.html",
+        lambda w: ancient(sample_info.at[w.sample, f'read{w.end}']),
+    output: outdir + "/fastqc/{sample}_{end}_fastqc.html",
     params:
-        outdir="rnaseq/raw_data/fastqc"
+        outdir=f"{outdir}/fastqc"
     conda: "conf/env/trim.yml"
     resources:
-        mem_mb=10000,
-        time=600,
-        partition='med2',
+        mem_mb=3000,
+        time=60,
+        partition='low2',
+    log: logdir + "/fastqc/{sample}_{end}.fastqc.log"
+    benchmark: logdir + "/fastqc/{sample}_{end}.fastqc.benchmark.txt"
     shell:
         """
-        fastqc {input} --outdir {params.outdir}
+        fastqc {input} --outdir {params.outdir} 2> {log}
         """
 
 rule fastqc_trimmed:
     input:
-        r1 = outdir + '/trim/{sample}_1.trim.fq.gz',
-        r2 = outdir + '/trim/{sample}_2.trim.fq.gz',
+        outdir + '/trim/{sample}_{end}.trim.fq.gz',
     output:
-        outdir + "/fastqc/{sample}.trim.fastqc.html",
+        outdir + "/fastqc/{sample}_{end}.trim_fastqc.html",
     params:
-        outdir= outdir + "fastqc"
+        outdir=f"{outdir}/fastqc"
     conda: "conf/env/trim.yml"
     resources:
-        mem_mb=10000,
-        time=600,
-        partition='med2',
+        mem_mb=3000,
+        time=60,
+        partition='low2',
+    log: logdir + "/fastqc/{sample}_{end}.trim.fastqc.log"
+    benchmark: logdir + "/fastqc/{sample}_{end}.trim.fastqc.benchmark.txt"
     shell:
         """
-        fastqc {input} --outdir {params.outdir}
+        fastqc {input} --outdir {params.outdir} 2> {log}
         """
 
 rule multiqc:
     input: 
-        raw=expand(outdir + "/fastqc/{sample}.fastqc.html", sample=SAMPLES),
-        trimmed=expand(outdir + "/fastqc/{sample}.trim.fastqc.html", sample=SAMPLES)
+        raw=expand(outdir + "/fastqc/{sample}_{end}_fastqc.html", sample=SAMPLES, end = [1,2]),
+        trimmed=expand(outdir + "/fastqc/{sample}_{end}.trim_fastqc.html", sample=SAMPLES, end = [1,2])
     output: outdir + "/fastqc/multiqc_report.html"
     params:
         fastqc_dir=f"{outdir}/fastqc",
     conda: "conf/env/trim.yml"
     resources:
-        mem_mb=10000,
-        time=600,
-        partition='med2',
+        mem_mb=3000,
+        time=60,
+        partition='low2',
+    log: logdir + "/multiqc/multiqc.log"
+    benchmark: logdir + "/multiqc/multiqc.benchmark.txt"
     shell:
         """
-        multiqc -f {params.fastqc_dir} --filename {output}
+        multiqc -f {params.fastqc_dir} --filename {output} 2> {log}
         """
 
 
@@ -182,7 +186,9 @@ rule write_trinity_samplesfile:
                     r1 = str(inF)
                     r2 = r1.replace("_1", "_2")
                     sample = os.path.basename(r1).rsplit("_", 1)[0] # requires last _ in filename to come after sample name
-                    f.write(f"{sample}\t{r1}\t{r2}\n")
+                    treatment = sample_info.at[sample, 'treatment']
+                    section = sample_info.at[sample, 'section']
+                    f.write(f"{sample}\t{r1}\t{r2}\t{treatment}\t{section}\n")
                     
 
 rule trinity_assembly:
@@ -197,9 +203,13 @@ rule trinity_assembly:
         mem_mb=max(150000, TRINITY_MAX_MEMORY),
         time=6000,
         partition='bmh',
+    log: logdir + "/trinity/{assembly_basename}.trinity_assembly.log"
+    benchmark: logdir + "/trinity/{assembly_basename}.trinity_assembly.benchmark.txt"
     conda: "conf/env/trinity.yml"
     shell:
-        "Trinity --seqType fq --samples_file {input.sample_info} --CPU {threads} --output {output.assembled_transcripts}"
+        """
+        Trinity --seqType fq --samples_file {input.sample_info} --CPU {threads} --output {output.assembled_transcripts} 2> {log}
+        """
 
 
 rule dammit_annotate:
@@ -218,6 +228,8 @@ rule dammit_annotate:
         mem_mb=max(150000, TRINITY_MAX_MEMORY),
         time=6000,
         partition='bmh',
+    log: logdir + "/dammit/{assembly_basename}.dammit.log"
+    benchmark: logdir + "/dammit/{assembly_basename}.dammit.benchmark.txt"
     conda: "conf/env/dammit.yml"
     shell:
         """

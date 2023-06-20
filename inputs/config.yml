@@ -21,8 +21,8 @@ assembly_info:
     - 'msB20body'
     - 'msB20eye'
 
-# In addition to the above, should we build an assembly using all samples?
-also_assemble_all: False # True
+# In addition to the above, should we build an assembly using all samples? (True/False)
+also_assemble_all: True
 
 
 # Maximum memory for Trinity? (integer in mb)
