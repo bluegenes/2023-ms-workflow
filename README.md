@@ -18,6 +18,8 @@ mamba env create -f environment.yml
 ```
 > You may need to install the conda/mamba package manager first. Recommend installing via [mambaforge](https://github.com/conda-forge/miniforge#mambaforge). Root not needed.
 
+The reads will need to be linked (or downloaded to) the `inputs` folder.
+
 To run, we activate the conda environment and use `snakemake -n` to show the steps the will be run:
 
 ```
