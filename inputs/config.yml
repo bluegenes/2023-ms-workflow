@@ -1,0 +1,22 @@
+
+basename: 'ms'
+output_dir: 'output.ms'
+
+# CSV with at least 3 columns: `name,read1,read2`
+samples: 'inputs/ms_samples.csv'
+
+# What samples shall we use for assembly?
+# YAML-formatted dictionary of assembly_basename: [samples]
+assembly_info: 
+  "msC13": 
+    - 'msC13body'
+    - 'msC13eye'
+    - 'msC13app'
+
+# In addition to the above, should we build an assembly using all samples?
+also_assemble_all: False # True
+
+
+# Maximum memory for Trinity? (integer in mb)
+
+trinity_max_memory: 150000 # 150G

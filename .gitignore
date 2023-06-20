@@ -1,0 +1,4 @@
+.snakemake
+output.*
+inputs/*gz
+logs

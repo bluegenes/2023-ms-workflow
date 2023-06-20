@@ -1,0 +1,7 @@
+name: trinity
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - trinity>=2.15,<3

@@ -1,0 +1,7 @@
+name: trinotate
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - trinotate>=4,<5

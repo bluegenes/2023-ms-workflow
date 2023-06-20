@@ -1,0 +1,9 @@
+name: 2023-ms-workflow
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - snakemake-minimal>=7.28,<8
+  - python=3.10
+  - pandas>2,<3

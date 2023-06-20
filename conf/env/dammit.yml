@@ -1,0 +1,8 @@
+name: dammit2
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - pip
+  - git+git://github.com/dib-lab/dammit@v2_staging
