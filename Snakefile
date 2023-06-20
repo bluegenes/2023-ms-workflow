@@ -26,7 +26,7 @@ if config.get("also_assemble_all", False):
 # get/set some useful params
 TRINITY_MAX_MEMORY = config.get('trinity_max_memory', 150000)
 
-# define workflow endpoints (targets)
+#### define workflow endpoints (targets) ####
 rule all:
     message:
         "RNA-Seq workflow: QC Reads, Assemble, and Quantify"
@@ -34,6 +34,47 @@ rule all:
         outdir + "/fastqc/multiqc_report.html",
         expand(outdir + "trinity/{assembly_basename}_assembly.fasta", assembly_basename=assembly_info.keys()),
         expand(outdir + "/{assembly_basename}/quant/{sample}_quant/quant.sf", assembly_basename=assembly_info.keys(), sample=SAMPLES),
+
+rule download_reads:
+    message:
+        "Download all reads"
+    input:
+        expand("inputs/{sample}_{end}.fastq.gz", sample=SAMPLES, end = [1,2]),
+
+rule qc_reads:
+    message:
+        "QC reads"
+    input:
+        outdir + "/fastqc/multiqc_report.html",
+
+rule assemble:
+    message:
+        "Assemble reads"
+    input:
+        expand(outdir + "trinity/{assembly_basename}_assembly.fasta", assembly_basename=assembly_info.keys()),
+
+rule quantify:
+    message:
+        "Quantify reads"
+    input:
+        expand(outdir + "/{assembly_basename}/quant/{sample}_quant/quant.sf", assembly_basename=assembly_info.keys(), sample=SAMPLES),
+
+
+# #### actual workflow rules ####
+
+rule download_readfile:
+    message:
+        "download each read file to 'inputs' folder"
+    output:
+        r1=protected("inputs/{sample}_{end}.fastq.gz"),
+    params:
+        outdir = "inputs",
+        url = lambda w: sample_info.at[w.sample, f'link{w.end}'],
+    shell:
+        """
+        curl -O -J -L {params.url} --output-dir {params.outdir} # keeps name from download. errors here mean I got the download link wrong
+        """
+        # wget -O {output.r1} {params.url}
 
 
 # Preprocess Reads #
@@ -133,7 +174,7 @@ rule write_trinity_samplesfile:
                 if '_1' in inF:
                     r1 = inF
                     r2 = inF.replace("_1", "_2")
-                    sample = os.path.basename(inF).split("_")[0] # requires first _ in filename to come after sample name
+                    sample = os.path.basename(inF).rsplit("_", 1)[0] # requires last _ in filename to come after sample name
                     f.write(f"{sample}\t{r1}\t{r2}\n")
                     
 
@@ -141,7 +182,7 @@ rule trinity_assembly:
     input: 
         sample_info = outdir + "/{assembly_basename}.trinity_info.tsv" 
     output:
-        assembled_transcripts = protected(outdir + "trinity/{assembly_basename}_assembly.fasta"),
+        assembled_transcripts = outdir + "trinity/{assembly_basename}_assembly.fasta",
     params:
         max_memory=TRINITY_MAX_MEMORY,
     threads: 20
