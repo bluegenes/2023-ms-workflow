@@ -14,7 +14,6 @@ default-resources:
   - partition=med2
   - threads=1
 max-jobs-per-second: 1
-#max-jobs-per-second: 20
 rerun-triggers:
   - mtime
   - params

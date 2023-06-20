@@ -169,12 +169,12 @@ rule write_trinity_samplesfile:
     output: outdir + "/{assembly_basename}.trinity_info.tsv"
     run:
         # default assembly info: all files together
-        with open(output, 'w') as f:
+        with open(str(output), 'w') as f:
             for inF in input:
                 if '_1' in inF:
-                    r1 = inF
-                    r2 = inF.replace("_1", "_2")
-                    sample = os.path.basename(inF).rsplit("_", 1)[0] # requires last _ in filename to come after sample name
+                    r1 = str(inF)
+                    r2 = r1.replace("_1", "_2")
+                    sample = os.path.basename(r1).rsplit("_", 1)[0] # requires last _ in filename to come after sample name
                     f.write(f"{sample}\t{r1}\t{r2}\n")
                     
 
