@@ -24,9 +24,8 @@ conda activate 2023-ms-workflow
 ```
 
 4. Make sure the reads are in the right spot (the 'inputs' folder). Two options:
-
-a. Copy or link reads to the 'inputs' folder
-b. Use the 'download_reads' workflow target to download:
+- Copy or link reads to the 'inputs' folder
+- Use the 'download_reads' workflow target to download:
 ```
 snakemake download_reads -j1 -n
 ```
