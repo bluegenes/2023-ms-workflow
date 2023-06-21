@@ -32,9 +32,9 @@ rule all:
         "RNA-Seq workflow: QC Reads, Assemble, and Quantify"
     input:
         outdir + "/fastqc/multiqc_report.html",
-        expand(outdir + "trinity/{assembly_basename}_assembly.fasta", assembly_basename=assembly_info.keys()),
-        expand(outdir + "/{assembly_basename}/quant/{sample}_quant/quant.sf", assembly_basename=assembly_info.keys(), sample=SAMPLES),
-        expand(outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3", assembly_basename=assembly_info.keys()),
+        expand(outdir + "trinity/{assembly_basename}.trinity.fasta", assembly_basename=assembly_info.keys()),
+        expand(outdir + "/{assembly_basename}.{assembler}/quant/{sample}_quant/quant.sf", assembly_basename=assembly_info.keys(), sample=SAMPLES, assembler = ['trinity']),
+        #expand(outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3", assembly_basename=assembly_info.keys()),
 
 rule download_reads:
     message:
@@ -188,71 +188,80 @@ rule write_trinity_samplesfile:
                     sample = os.path.basename(r1).rsplit("_", 1)[0] # requires last _ in filename to come after sample name
                     treatment = sample_info.at[sample, 'treatment']
                     section = sample_info.at[sample, 'section']
-                    f.write(f"{sample}\t{r1}\t{r2}\t{treatment}\t{section}\n")
+                    f.write(f"{treatment}\t{sample}\t{r1}\t{r2}\n")
                     
 
 rule trinity_assembly:
     input: 
-        sample_info = outdir + "/{assembly_basename}.trinity_info.tsv" 
+        sample_info = outdir + "/{assembly_basename}.trinity_info.tsv",
+        left = lambda w: expand(outdir + "/trim/{sample}_1.trim.fq.gz", sample=assembly_info[w.assembly_basename]),
+        right = lambda w: expand(outdir + "/trim/{sample}_2.trim.fq.gz", sample=assembly_info[w.assembly_basename]),
     output:
-        assembled_transcripts = outdir + "trinity/{assembly_basename}_assembly.fasta",
-    params:
-        max_memory=TRINITY_MAX_MEMORY,
-    threads: 20
+        assembled_transcripts = outdir + "trinity/{assembly_basename}.trinity.fasta",
     resources:
-        mem_mb=max(150000, TRINITY_MAX_MEMORY),
+        mem_mb= lambda wildcards, attempt: TRINITY_MAX_MEMORY * attempt,
         time=6000,
         partition='bmh',
-    log: logdir + "/trinity/{assembly_basename}.trinity_assembly.log"
-    benchmark: logdir + "/trinity/{assembly_basename}.trinity_assembly.benchmark.txt"
+    params:
+        mem_gb = str(TRINITY_MAX_MEMORY / 1000) + 'G',
+        left_str = lambda w: ','.join(expand(outdir + "/trim/{sample}_1.trim.fq.gz", sample=assembly_info[w.assembly_basename])),
+        right_str = lambda w: ','.join(expand(outdir + "/trim/{sample}_2.trim.fq.gz", sample=assembly_info[w.assembly_basename])),
+    log: logdir + "/trinity/{assembly_basename}.trinity.log"
+    benchmark: logdir + "/trinity/{assembly_basename}.trinity.benchmark.txt"
     conda: "conf/env/trinity.yml"
-    shell:
-        """
-        Trinity --seqType fq --samples_file {input.sample_info} --CPU {threads} --output {output.assembled_transcripts} 2> {log}
-        """
-
-
-rule dammit_annotate:
-    input:
-        assembly = outdir + "trinity/{assembly_basename}_assembly.fasta",
-    output:
-        dammit_gff3 = outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3",
-        dammit_fasta = outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.fasta",
-        dammit_report = outdir + "{assembly_basename}/dammit/{assembly_basename}.dammit.report.html",
-    params:
-        max_memory=TRINITY_MAX_MEMORY,
-        outdir= lambda w: f"{outdir}/{w.assembly_basename}/dammit",
-        database_dir='databases',
     threads: 20
-    resources:
-        mem_mb=max(150000, TRINITY_MAX_MEMORY),
-        time=6000,
-        partition='bmh',
-    log: logdir + "/dammit/{assembly_basename}.dammit.log"
-    benchmark: logdir + "/dammit/{assembly_basename}.dammit.benchmark.txt"
-    conda: "conf/env/dammit.yml"
     shell:
         """
-        dammit annotate {input.assembly} --busco-group eukaryota --n_threads {threads} \
-               --database-dir {params.database_dir} --out-dir {params.outdir} \
-               --full -o {wildcards.assembly_basename} --no-rename \
-               --profile slurm 2> {log}
+        Trinity --seqType fq --left {params.left_str} --right {params.right_str} \
+                --CPU {threads} --max_memory {params.mem_gb} \
+                --output {output.assembled_transcripts} 2> {log}
         """
+        #Trinity --seqType fq --single reads.fq --max_memory 10G
+        #Trinity --seqType fq --samples_file {input.sample_info} --CPU {threads} \
+        #        --max_memory {resources.mem_mb}M --output {output.assembled_transcripts} 2> {log}
+
+
+#rule dammit_annotate:
+#    input:
+#        assembly = outdir + "trinity/{assembly_basename}.trinity.fasta",
+#    output:
+#        dammit_gff3 = outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.gff3",
+#        dammit_fasta = outdir + "/{assembly_basename}/dammit/{assembly_basename}.dammit.fasta",
+#        dammit_report = outdir + "{assembly_basename}/dammit/{assembly_basename}.dammit.report.html",
+#    params:
+#        max_memory=TRINITY_MAX_MEMORY,
+#        outdir= lambda w: f"{outdir}/{w.assembly_basename}/dammit",
+#        database_dir='databases',
+#    threads: 20
+#    resources:
+#        mem_mb=max(150000, TRINITY_MAX_MEMORY),
+#        time=6000,
+#        partition='bmh',
+#    log: logdir + "/dammit/{assembly_basename}.dammit.log"
+#    benchmark: logdir + "/dammit/{assembly_basename}.dammit.benchmark.txt"
+#    conda: "conf/env/dammit.yml"
+#    shell:
+#        """
+#        dammit annotate {input.assembly} --busco-group eukaryota --n_threads {threads} \
+#               --database-dir {params.database_dir} --out-dir {params.outdir} \
+#               --full -o {wildcards.assembly_basename} --no-rename \
+#               --profile slurm 2> {log}
+#        """
 
 
 ### index assembly and quantify reads with salmon ###
 rule salmon_index:
     message:
         "Indexing transcripts with salmon"
-    input: outdir + "trinity/{assembly_basename}_assembly.fasta" 
-    output: directory(outdir + "/{assembly_basename}/quant/{assembly_basename}_index")
+    input: outdir + "trinity/{assembly_name}.fasta" 
+    output: directory(outdir + "/{assembly_name}/quant/{assembly_name}_index")
     conda: "conf/env/salmon.yml"
     resources:
         mem_mb=10000,
         time=600,
         partition='med2',
-    log: logdir + "/{assembly_basename}/salmon_index.log"
-    benchmark: logdir + "/{assembly_basename}/salmon_index.benchmark"
+    log: logdir + "/{assembly_name}/salmon_index.log"
+    benchmark: logdir + "/{assembly_name}/salmon_index.benchmark"
     shell:
         """
         salmon index --index {output} --transcripts {input} -k 31 2> {log}
@@ -262,17 +271,18 @@ rule salmon_quantify:
     input:
         r1 = outdir + '/trim/{sample}_1.trim.fq.gz',
         r2 = outdir + '/trim/{sample}_2.trim.fq.gz',
-        index_dir=outdir + "/{assembly_basename}/quant/{assembly_basename}_index",
-    output: outdir + "/{assembly_basename}/quant/{sample}_quant/quant.sf"
+        index_dir=outdir + "/{assembly_name}/quant/{assembly_name}_index",
+    output:
+        outdir + "/{assembly_name}/quant/{sample}_quant/quant.sf"
     params:
-        outdir= lambda wildcards: "rnaseq/quant/" + wildcards.sample + "_quant"
+        outdir= lambda w: f"{outdir}/{w.assembly_name}/quant/" + w.sample + "_quant"
     conda: "conf/env/salmon.yml"
     resources:
         mem_mb=10000,
         time=600,
         partition='med2',
-    log: logdir + "/{assembly_basename}/{sample}.salmon.log"
-    benchmark: logdir + "/{assembly_basename}/{sample}.salmon.benchmark"
+    log: logdir + "/{assembly_name}/{sample}.salmon.log"
+    benchmark: logdir + "/{assembly_name}/{sample}.salmon.benchmark"
     shell:
         """
         salmon quant -i {input.index_dir} --libType A -1 {input.r1} \
